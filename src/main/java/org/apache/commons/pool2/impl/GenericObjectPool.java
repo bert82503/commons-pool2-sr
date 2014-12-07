@@ -19,10 +19,10 @@ package org.apache.commons.pool2.impl;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -36,6 +36,9 @@ import org.apache.commons.pool2.TrackedUse;
 import org.apache.commons.pool2.UsageTracking;
 
 /**
+ * 一个可配置的对象池({@link ObjectPool})实现。
+ * <p>
+ * 
  * A configurable {@link ObjectPool} implementation.
  * <p>
  * When coupled with the appropriate {@link PooledObjectFactory},
@@ -91,6 +94,8 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     }
 
     /**
+     * 使用特定配置来创建一个新的"通用对象池"实例。
+     * <p>
      * Create a new <code>GenericObjectPool</code> using a specific
      * configuration.
      *
@@ -293,6 +298,8 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
 
 
     /**
+     * 设置基池配置。
+     * <p>
      * Sets the base pool configuration.
      *
      * @param conf the new configuration to use. This is used by value.
@@ -320,6 +327,8 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     }
 
     /**
+     * 设置"被遗弃的对象移除"配置。
+     * <p>
      * Sets the abandoned object removal configuration.
      *
      * @param abandonedConfig the new configuration to use. This is used by value.
@@ -362,6 +371,9 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     }
 
     /**
+     * 使用指定的等待时间来向池借用一个对象。
+     * <p>
+     * 
      * Borrow an object from the pool using the specific waiting time which only
      * applies if {@link #getBlockWhenExhausted()} is true.
      * <p>
@@ -407,6 +419,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      *                   error
      */
     public T borrowObject(long borrowMaxWaitMillis) throws Exception {
+    	// 检验池打开着
         assertOpen();
 
         AbandonedConfig ac = this.abandonedConfig;
@@ -427,71 +440,81 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
 
         while (p == null) {
             create = false;
-            if (blockWhenExhausted) {
+            if (blockWhenExhausted) { // 阻塞
+            	// 1. 有空闲池对象吗
                 p = idleObjects.pollFirst();
                 if (p == null) {
+                	// 2. 没有空闲池对象，创建一个新的池对象
                     create = true;
                     p = create();
                 }
-                if (p == null) {
-                    if (borrowMaxWaitMillis < 0) {
+                if (p == null) { // 3. 无法创建一个新的池对象
+                    if (borrowMaxWaitMillis < 0) { // 3.1 等待空闲池对象返回
                         p = idleObjects.takeFirst();
-                    } else {
+                    } else { // 3.2 在借用的最大等待时间里，是否有新的池对象被返回
                         waitTime = System.currentTimeMillis();
                         p = idleObjects.pollFirst(borrowMaxWaitMillis,
                                 TimeUnit.MILLISECONDS);
                         waitTime = System.currentTimeMillis() - waitTime;
                     }
                 }
-                if (p == null) {
+                if (p == null) { // 4. 等待空闲池对象超时
                     throw new NoSuchElementException(
                             "Timeout waiting for idle object");
                 }
-                if (!p.allocate()) {
+                
+                if (!p.allocate()) { // 5. 池对象是否处于"空闲(IDLE)"状态
                     p = null;
                 }
-            } else {
+            } else { // 非阻塞
+            	// 1. 有空闲池对象吗
                 p = idleObjects.pollFirst();
                 if (p == null) {
+                	// 2. 没有空闲池对象，创建一个新的池对象
                     create = true;
                     p = create();
                 }
-                if (p == null) {
+                if (p == null) { // 3. 池对象已被耗尽
                     throw new NoSuchElementException("Pool exhausted");
                 }
-                if (!p.allocate()) {
+                if (!p.allocate()) { // 4. 池对象是否处于"空闲(IDLE)"状态
                     p = null;
                 }
             }
 
-            if (p != null) {
+            if (p != null) { // 有可用的池对象
                 try {
+                	// 1. 重新初始化这个池对象
                     factory.activateObject(p);
                 } catch (Exception e) {
                     try {
+                    	// 初始化发生异常，销毁它
                         destroy(p);
                     } catch (Exception e1) {
                         // Ignore - activation failure is more important
                     }
                     p = null;
                     if (create) {
+                    	// 无法激活这个新创建的池对象(当节点宕机时)
                         NoSuchElementException nsee = new NoSuchElementException(
                                 "Unable to activate object");
                         nsee.initCause(e);
                         throw nsee;
                     }
                 }
-                if (p != null && (getTestOnBorrow() || create && getTestOnCreate())) {
+                if (p != null && (getTestOnBorrow() || create && getTestOnCreate())) { // 在借用、创建时校验池对象的有效性
                     boolean validate = false;
                     Throwable validationThrowable = null;
                     try {
+                    	// 使用PooledObjectFactory.validateObject(PooledObject<T> p)来校验池对象的有效性
                         validate = factory.validateObject(p);
                     } catch (Throwable t) {
                         PoolUtils.checkRethrow(t);
                         validationThrowable = t;
                     }
-                    if (!validate) {
+                    if (!validate) { // 池对象有异常
                         try {
+                        	// 校验发生异常，销毁它
                             destroy(p);
                             destroyedByBorrowValidationCount.incrementAndGet();
                         } catch (Exception e) {
@@ -499,6 +522,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
                         }
                         p = null;
                         if (create) {
+                        	// 无法激活这个新创建的池对象(当节点宕机时)
                             NoSuchElementException nsee = new NoSuchElementException(
                                     "Unable to validate object");
                             nsee.initCause(validationThrowable);
@@ -813,6 +837,9 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     }
 
     /**
+     * 尝试着创建一个新的包装的池对象。
+     * <p>
+     * 
      * Attempts to create a new wrapped pooled object.
      * <p>
      * If there are {@link #getMaxTotal()} objects already in circulation
@@ -823,16 +850,18 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      * @throws Exception if the object factory's {@code makeObject} fails
      */
     private PooledObject<T> create() throws Exception {
+    	// 1. 对象池是否被耗尽判断
         int localMaxTotal = getMaxTotal();
         long newCreateCount = createCount.incrementAndGet();
         if (localMaxTotal > -1 && newCreateCount > localMaxTotal ||
                 newCreateCount > Integer.MAX_VALUE) {
             createCount.decrementAndGet();
-            return null;
+            return null; // 没有池对象可创建
         }
 
         final PooledObject<T> p;
         try {
+        	// 2. 使用PooledObjectFactory.makeObject()来制造一个新的池对象
             p = factory.makeObject();
         } catch (Exception e) {
             createCount.decrementAndGet();
@@ -844,12 +873,17 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
             p.setLogAbandoned(true);
         }
 
+        // Bug 创建计数器多加了1次吧？（待确认）
         createdCount.incrementAndGet();
+        // 3. 将新创建的池对象追加到"池的所有对象映射表"中
         allObjects.put(p.getObject(), p);
         return p;
     }
 
     /**
+     * 销毁一个包装的池对象。
+     * <p>
+     * 
      * Destroys a wrapped pooled object.
      *
      * @param toDestory The wrapped pooled object to destroy
@@ -858,10 +892,13 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      *                   cleanly
      */
     private void destroy(PooledObject<T> toDestory) throws Exception {
+    	// 1. 设置这个池对象状态为"无效(INVALID)"
         toDestory.invalidate();
+        // 2. 将这个池对象从空闲对象列表和所有对象列表中移除掉
         idleObjects.remove(toDestory);
         allObjects.remove(toDestory.getObject());
         try {
+        	// 3. 使用PooledObjectFactory.destroyObject(PooledObject<T> p)来销毁这个不需要的池对象
             factory.destroyObject(toDestory);
         } finally {
             destroyedCount.incrementAndGet();
@@ -1079,7 +1116,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     private final PooledObjectFactory<T> factory;
 
 
-    // --- internal attributes -------------------------------------------------
+    // --- internal attributes (内部属性) -------------------------------------------------
 
     /*
      * All of the objects currently associated with this pool in any state. It
@@ -1088,7 +1125,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      * #_maxActive}. Map keys are pooled objects, values are the PooledObject
      * wrappers used internally by the pool.
      */
-    private final Map<T, PooledObject<T>> allObjects =
+    private final ConcurrentMap<T, PooledObject<T>> allObjects =
         new ConcurrentHashMap<T, PooledObject<T>>();
     /*
      * The combined count of the currently created objects and those in the
@@ -1098,6 +1135,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      * {@link #_maxActive} objects created at any one time.
      */
     private final AtomicLong createCount = new AtomicLong(0);
+    /** 池的空闲池对象列表 */
     private final LinkedBlockingDeque<PooledObject<T>> idleObjects =
         new LinkedBlockingDeque<PooledObject<T>>();
 

@@ -87,10 +87,13 @@ public abstract class BaseGenericObjectPool<T> {
     private volatile EvictionPolicy<T> evictionPolicy;
 
 
-    // Internal (primarily state) attributes
+    // Internal (primarily state) attributes (内部属性(主要是状态))
+    /** 关闭锁 */
     final Object closeLock = new Object();
     volatile boolean closed = false;
+    /** 驱逐锁 */
     final Object evictionLock = new Object();
+    /** 驱逐者 */
     private Evictor evictor = null; // @GuardedBy("evictionLock")
     Iterator<PooledObject<T>> evictionIterator = null; // @GuardedBy("evictionLock")
     /*
@@ -101,18 +104,32 @@ public abstract class BaseGenericObjectPool<T> {
     private final ClassLoader factoryClassLoader;
 
 
-    // Monitoring (primarily JMX) attributes
+    // Monitoring (primarily JMX) attributes (监视属性(主要是JMX))
+    /** 对象名称 */
     private final ObjectName oname;
+    /** 创建行为的栈踪迹 */
     private final String creationStackTrace;
+    // 各种行为的计数器
+    /** 借用的池对象计数器 */
     private final AtomicLong borrowedCount = new AtomicLong(0);
+    /** 返回的池对象计数器 */
     private final AtomicLong returnedCount = new AtomicLong(0);
+    /** 创建的池对象计数器 */
     final AtomicLong createdCount = new AtomicLong(0);
+    /** 销毁的池对象计数器 */
     final AtomicLong destroyedCount = new AtomicLong(0);
+    /** 被驱逐者销毁的池对象计数器 */
     final AtomicLong destroyedByEvictorCount = new AtomicLong(0);
+    /** 被借用校验销毁的池对象计数器 */
     final AtomicLong destroyedByBorrowValidationCount = new AtomicLong(0);
+    // 各种状态的时间统计
+    /** 各个池对象的活跃时间统计 */
     private final LinkedList<Long> activeTimes = new LinkedList<Long>(); // @GuardedBy("activeTimes") - except in initStats()
+    /** 各个池对象的空闲时间统计 */
     private final LinkedList<Long> idleTimes = new LinkedList<Long>(); // @GuardedBy("activeTimes") - except in initStats()
+    /** 各个池对象的等待时间统计 */
     private final LinkedList<Long> waitTimes = new LinkedList<Long>(); // @GuardedBy("activeTimes") - except in initStats()
+    // 借用池对象的最大等待时间(ms)
     private final Object maxBorrowWaitTimeMillisLock = new Object();
     private volatile long maxBorrowWaitTimeMillis = 0; // @GuardedBy("maxBorrowWaitTimeMillisLock")
     private SwallowedExceptionListener swallowedExceptionListener = null;
@@ -851,7 +868,11 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
+     * 更新统计数据。
+     * <p>
+     * 
      * Updates statistics after an object is borrowed from the pool.
+     * 
      * @param p object borrowed from the pool
      * @param waitTime time (in milliseconds) that the borrowing thread had to wait
      */
@@ -1018,6 +1039,8 @@ public abstract class BaseGenericObjectPool<T> {
     // Inner classes
 
     /**
+     * "空闲对象的驱逐者"计时器任务。
+     * <p>
      * The idle object evictor {@link TimerTask}.
      *
      * @see GenericKeyedObjectPool#setTimeBetweenEvictionRunsMillis
@@ -1040,7 +1063,7 @@ public abstract class BaseGenericObjectPool<T> {
                 Thread.currentThread().setContextClassLoader(
                         factoryClassLoader);
 
-                // Evict from the pool
+                // Evict from the pool (从池中驱逐)
                 try {
                     evict();
                 } catch(Exception e) {
@@ -1050,7 +1073,7 @@ public abstract class BaseGenericObjectPool<T> {
                     // in case error is recoverable
                     oome.printStackTrace(System.err);
                 }
-                // Re-create idle instances.
+                // Re-create idle instances. (重新创建空闲实例)
                 try {
                     ensureMinIdle();
                 } catch (Exception e) {
