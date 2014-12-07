@@ -19,9 +19,9 @@ package org.apache.commons.pool2;
 import java.util.NoSuchElementException;
 
 /**
- * A pooling simple interface.
+ * A pooling simple interface. ("对象池"接口)
  * <p>
- * Example of use:
+ * Example of use: (使用示例：)
  * <pre style="border:solid thin; padding: 1ex;"
  * > Object obj = <code style="color:#00C">null</code>;
  *
@@ -46,7 +46,7 @@ import java.util.NoSuchElementException;
  * <p>
  * See {@link BaseObjectPool} for a simple base implementation.
  *
- * @param <T> Type of element pooled in this pool.
+ * @param <T> Type of element pooled in this pool. (该池中的元素类型)
  *
  * @see PooledObjectFactory
  * @see KeyedObjectPool
@@ -57,7 +57,20 @@ import java.util.NoSuchElementException;
  * @since 2.0
  */
 public interface ObjectPool<T> {
-    /**
+
+	/**
+     * 从该池中获得一个实例。
+     * <p>
+     * 实例可能从{@link PooledObjectFactory#makeObject()}方法新创建，或是先前的空闲对象，
+     * 然后使用{@link PooledObjectFactory#activateObject(PooledObject)}方法激活，
+     * 然后使用{@link PooledObjectFactory#validateObject(PooledObject)}方法校验有效性。
+     * <p>
+     * 按约定，客户端必须使用{@link #returnObject(Object)}、
+     * {@link #invalidateObject(Object)}归还借来的实例。
+     * <p>
+     * 当池被耗尽时，该方法的行为并没有被严格规定。
+     * <p>
+     * 
      * Obtains an instance from this pool.
      * <p>
      * Instances returned from this method will have been either newly created
@@ -80,15 +93,20 @@ public interface ObjectPool<T> {
      *              after {@link #close close} has been called on this pool.
      * @throws Exception
      *              when {@link PooledObjectFactory#makeObject} throws an
-     *              exception.
+     *              exception. ({@link PooledObjectFactory#makeObject}抛出一个异常)
      * @throws NoSuchElementException
      *              when the pool is exhausted and cannot or will not return
-     *              another instance.
+     *              another instance. (当池被耗尽不能返回实例时)
      */
     T borrowObject() throws Exception, NoSuchElementException,
             IllegalStateException;
 
     /**
+     * 返回这个实例到池中。
+     * <p>
+     * 按约定，对象必须是使用{@link #borrowObject()}获取的。
+     * <p>
+     * 
      * Return an instance to the pool. By contract, <code>obj</code>
      * <strong>must</strong> have been obtained using {@link #borrowObject()} or
      * a related method as defined in an implementation or sub-interface.
@@ -107,6 +125,11 @@ public interface ObjectPool<T> {
     void returnObject(T obj) throws Exception;
 
     /**
+     * 标记这个对象为失效状态。
+     * <p>
+     * 按约定，对象必须是使用{@link #borrowObject()}获取的。
+     * <p>
+     * 
      * Invalidates an object from the pool.
      * <p>
      * By contract, <code>obj</code> <strong>must</strong> have been obtained
@@ -123,6 +146,11 @@ public interface ObjectPool<T> {
     void invalidateObject(T obj) throws Exception;
 
     /**
+     * 使用工厂({@link PooledObjectFactory factory})创建一个对象，初始化它，
+     * 并将它放入空闲对象池中。
+     * 当需要预加载一个池的空闲对象时，这个方法就特别有用！
+     * <p>
+     * 
      * Create an object using the {@link PooledObjectFactory factory} or other
      * implementation dependent mechanism, passivate it, and then place it in
      * the idle object pool. <code>addObject</code> is useful for "pre-loading"
@@ -139,6 +167,9 @@ public interface ObjectPool<T> {
             UnsupportedOperationException;
 
     /**
+     * 返回该池中当前空闲的实例数量。
+     * <p>
+     * 
      * Return the number of instances currently idle in this pool. This may be
      * considered an approximation of the number of objects that can be
      * {@link #borrowObject borrowed} without creating any new instances.
@@ -148,6 +179,9 @@ public interface ObjectPool<T> {
     int getNumIdle();
 
     /**
+     * 返回该池当前被借用的实例数量。
+     * <p>
+     * 
      * Return the number of instances currently borrowed from this pool. Returns
      * a negative value if this information is not available.
      * @return the number of instances currently borrowed from this pool.
@@ -155,6 +189,10 @@ public interface ObjectPool<T> {
     int getNumActive();
 
     /**
+     * 清除池中的任何空闲对象，并释放任何相关的资源。
+     * 空闲的对象必须使用{@link PooledObjectFactory#destroyObject(PooledObject)}方法清除。
+     * <p>
+     * 
      * Clears any objects sitting idle in the pool, releasing any associated
      * resources (optional operation). Idle objects cleared must be
      * {@link PooledObjectFactory#destroyObject(PooledObject)}.
@@ -167,6 +205,9 @@ public interface ObjectPool<T> {
     void clear() throws Exception, UnsupportedOperationException;
 
     /**
+     * 关闭该池，并释放任何与它相关的资源。
+     * <p>
+     * 
      * Close this pool, and free any resources associated with it.
      * <p>
      * Calling {@link #addObject} or {@link #borrowObject} after invoking this
@@ -175,4 +216,5 @@ public interface ObjectPool<T> {
      * Implementations should silently fail if not all resources can be freed.
      */
     void close();
+
 }
