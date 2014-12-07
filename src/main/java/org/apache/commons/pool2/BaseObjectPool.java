@@ -17,6 +17,11 @@
 package org.apache.commons.pool2;
 
 /**
+ * 一个简单、基本的对象池({@link ObjectPool})实现。
+ * <p>
+ * 此类打算是线程安全的。
+ * <p>
+ * 
  * A simple base implementation of {@link ObjectPool}.
  * Optional operations are implemented to either do nothing, return a value
  * indicating it is unsupported or throw {@link UnsupportedOperationException}.
@@ -95,6 +100,8 @@ public abstract class BaseObjectPool<T> implements ObjectPool<T> {
     }
 
     /**
+     * 这个池实例是否已被关闭。
+     * <p>
      * Has this pool instance been closed.
      *
      * @return <code>true</code> when this pool has been closed.
@@ -117,5 +124,7 @@ public abstract class BaseObjectPool<T> implements ObjectPool<T> {
         }
     }
 
+    /** 这个池是否被关闭标识 */
     private volatile boolean closed = false;
+
 }
