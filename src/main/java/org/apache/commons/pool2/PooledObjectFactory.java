@@ -17,6 +17,22 @@
 package org.apache.commons.pool2;
 
 /**
+ * 一个"定义对象池中实例的生命周期方法"的接口。
+ * <p>
+ * <pre>
+ * 池对象工厂的职责：
+ *    1. 每当需要一个新的实例时，{@link #makeObject()}会被调用。
+ *    2. 在每个实例从对象池被借走之前，{@link #activateObject(PooledObject)}会被调用。
+ *    3. {@link #validateObject(PooledObject)}可能会在激活({@link #activateObject(PooledObject)})的实例上被调用，
+ *       以确保他们可以从对象池借用。{@link #validateObject(PooledObject)}也可以用于测试一个返回给对象池的实例。
+ *    4. 在每个实例返回到对象池时，{@link #passivateObject(PooledObject)}会被调用。
+ *    5. 在每个实例从对象池被移除时，{@link #destroyObject(PooledObject)}会被调用
+ *      （是否由于{@link #validateObject(PooledObject)}的响应信息）。
+ * </pre>
+ * {@link PooledObjectFactory}必须是线程安全的。
+ * <font color="red">唯一保证：</font>一个对象池制造的相同的对象实例不会在同一时刻被传入到多个方法中。
+ * <p>
+ * 
  * An interface defining life-cycle methods for instances to be served by an
  * {@link ObjectPool}.
  * <p>
@@ -71,7 +87,11 @@ package org.apache.commons.pool2;
  * @since 2.0
  */
 public interface PooledObjectFactory<T> {
+
   /**
+   * 创建一个能被保存到对象池的实例，并将它包装成一个池对象({@link PooledObject})，
+   * 以便由对象池管理。
+   * <p>
    * Create an instance that can be served by the pool and wrap it in a
    * {@link PooledObject} to be managed by the pool.
    *
@@ -83,6 +103,10 @@ public interface PooledObjectFactory<T> {
   PooledObject<T> makeObject() throws Exception;
 
   /**
+   * 销毁对象池中不再需要的实例。
+   * <p>
+   * <font color="red">必须加以考虑：</font>没有被垃圾收集器回收的实例，可能永远不会被销毁！
+   * <p>
    * Destroys an instance no longer needed by the pool.
    * <p>
    * It is important for implementations of this method to be aware that there
@@ -104,16 +128,21 @@ public interface PooledObjectFactory<T> {
   void destroyObject(PooledObject<T> p) throws Exception;
 
   /**
+   * 确保可以返回给"对象池"的池对象实例是安全的。
+   * <p>
    * Ensures that the instance is safe to be returned by the pool.
    *
    * @param p a {@code PooledObject} wrapping the instance to be validated
    *
    * @return <code>false</code> if <code>obj</code> is not valid and should
    *         be dropped from the pool, <code>true</code> otherwise.
+   *         (如果对象不是有效的，同时应该从对象池中驱除，则返回 false；否则，返回 true。)
    */
   boolean validateObject(PooledObject<T> p);
 
   /**
+   * 重新初始化可以返回给"对象池"的池对象。
+   * <p>
    * Reinitialize an instance to be returned by the pool.
    *
    * @param p a {@code PooledObject} wrapping the instance to be activated
@@ -126,6 +155,8 @@ public interface PooledObjectFactory<T> {
   void activateObject(PooledObject<T> p) throws Exception;
 
   /**
+   * 未初始化可以返回给"空闲对象池"的池对象。
+   * <p>
    * Uninitialize an instance to be returned to the idle object pool.
    *
    * @param p a {@code PooledObject} wrapping the instance to be passivated
@@ -136,4 +167,5 @@ public interface PooledObjectFactory<T> {
    * @see #destroyObject
    */
   void passivateObject(PooledObject<T> p) throws Exception;
+
 }
