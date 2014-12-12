@@ -39,6 +39,8 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.SwallowedExceptionListener;
 
 /**
+ * 为"可配置的对象池({@link GenericObjectPool})"提供通用的功能。
+ * <p>
  * Base class that provides common functionality for {@link GenericObjectPool}
  * and {@link GenericKeyedObjectPool}. The primary reason this class exists is
  * reduce code duplication between the two pool implementations.
@@ -636,14 +638,19 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
-     * <p>Perform <code>numTests</code> idle object eviction tests, evicting
+     * 执行{@link numTests}个空闲池对象的驱逐测试，驱逐那些符合驱逐条件的被审查对象。
+     * <p>
+     * 如果{@code testWhileIdle}为{@code true}，则被审查的对象在访问期间是有效的(无效则会被删除)；
+     * 否则，仅有那些池对象的空闲时间超过{@code minEvicableIdleTimeMillis}会被删除。
+     * <p>
+     * Perform <code>numTests</code> idle object eviction tests, evicting
      * examined objects that meet the criteria for eviction. If
      * <code>testWhileIdle</code> is true, examined objects are validated
      * when visited (and removed if invalid); otherwise only objects that
      * have been idle for more than <code>minEvicableIdleTimeMillis</code>
      * are removed.</p>
      *
-     * @throws Exception when there is a problem evicting idle objects.
+     * @throws Exception when there is a problem evicting idle objects. (当这是一个有问题的驱逐空闲池对象时，才会抛出Exception异常。)
      */
     public abstract void evict() throws Exception;
 
