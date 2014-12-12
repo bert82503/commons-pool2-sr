@@ -17,6 +17,10 @@
 package org.apache.commons.pool2.impl;
 
 /**
+ * 此类用于将对象池的配置信息传递给驱逐回收策略({@link EvictionPolicy})实例。
+ * <p>
+ * <font color="red">此类是不可变的，且是线程安全的。</font>
+ * <p>
  * This class is used by pool implementations to pass configuration information
  * to {@link EvictionPolicy} instances. The {@link EvictionPolicy} may also have
  * its own specific configuration attributes.
@@ -29,20 +33,28 @@ package org.apache.commons.pool2.impl;
  */
 public class EvictionConfig {
 
+	// final 字段修饰保证其不可变性
+	/** 池对象的最大空闲驱逐时间（当池对象的空闲时间超过该值时，立马被强制驱逐掉） */
     private final long idleEvictTime;
+    /** 池对象的最小空闲驱逐时间（当池对象的空闲时间超过该值时，被纳入驱逐对象列表里） */
     private final long idleSoftEvictTime;
+    /** 对象池的最小空闲池对象数量 */
     private final int minIdle;
 
 
     /**
+     * 创建一个新的"驱逐回收策略"配置实例。
+     * <p>
+     * <font color="red">实例是不可变的。</font>
+     * <p>
      * Create a new eviction configuration with the specified parameters.
      * Instances are immutable.
      *
-     * @param poolIdleEvictTime Expected to be provided by
+     * @param poolIdleEvictTime Expected to be provided by (池对象的最大空闲驱逐时间(ms))
      *        {@link BaseGenericObjectPool#getMinEvictableIdleTimeMillis()}
-     * @param poolIdleSoftEvictTime Expected to be provided by
+     * @param poolIdleSoftEvictTime Expected to be provided by (池对象的最小空闲驱逐时间(ms))
      *        {@link BaseGenericObjectPool#getSoftMinEvictableIdleTimeMillis()}
-     * @param minIdle Expected to be provided by
+     * @param minIdle Expected to be provided by (对象池的最小空闲池对象数量)
      *        {@link GenericObjectPool#getMinIdle()} or
      *        {@link GenericKeyedObjectPool#getMinIdlePerKey()}
      */
@@ -62,6 +74,10 @@ public class EvictionConfig {
     }
 
     /**
+     * 获取"池对象的最大空闲驱逐时间(ms)"。
+     * <p>
+     * 当池对象的空闲时间超过该值时，立马被强制驱逐掉。
+     * <p>
      * Obtain the {@code idleEvictTime} for this eviction configuration
      * instance.
      * <p>
@@ -75,6 +91,10 @@ public class EvictionConfig {
     }
 
     /**
+     * 获取"池对象的最小空闲驱逐时间(ms)"。
+     * <p>
+     * 当池对象的空闲时间超过该值时，被纳入驱逐对象列表里。
+     * <p>
      * Obtain the {@code idleSoftEvictTime} for this eviction configuration
      * instance.
      * <p>
@@ -88,6 +108,8 @@ public class EvictionConfig {
     }
 
     /**
+     * 获取"对象池的最小空闲池对象数量"。
+     * <p>
      * Obtain the {@code minIdle} for this eviction configuration instance.
      * <p>
      * How the evictor behaves based on this value will be determined by the
@@ -98,4 +120,5 @@ public class EvictionConfig {
     public int getMinIdle() {
         return minIdle;
     }
+
 }
