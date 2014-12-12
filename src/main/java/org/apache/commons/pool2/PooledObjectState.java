@@ -74,12 +74,12 @@ public enum PooledObjectState {
 
     /**
      * Failed maintenance (e.g. eviction test or validation) and will be / has
-     * been destroyed (失败的维护，并将会被销毁)
+     * been destroyed (无效 - 失败的维护，并将会被销毁)
      */
     INVALID,
 
     /**
-     * Deemed abandoned, to be invalidated. (视为废弃，是无效的)
+     * Deemed abandoned, to be invalidated. (视为被废弃，是无效的)
      */
     ABANDONED,
 

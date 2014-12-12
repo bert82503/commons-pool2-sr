@@ -125,7 +125,7 @@ public interface ObjectPool<T> {
     void returnObject(T obj) throws Exception;
 
     /**
-     * 标记这个对象为失效状态。
+     * 标记这个对象为"无效"状态。
      * <p>
      * 按约定，对象必须是使用{@link #borrowObject()}获取的。
      * <p>

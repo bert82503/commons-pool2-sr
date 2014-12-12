@@ -17,7 +17,7 @@
 package org.apache.commons.pool2;
 
 /**
- * 一个简单、基本的对象池({@link ObjectPool})实现。
+ * "一个简单、基本的对象池({@link ObjectPool})"的抽象实现。
  * <p>
  * 此类打算是线程安全的。
  * <p>

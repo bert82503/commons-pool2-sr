@@ -120,6 +120,8 @@ public interface PooledObject<T> extends Comparable<PooledObject<T>> {
     String toString();
 
     /**
+     * 视图将这个池对象设置为"驱逐({@link PooledObjectState#EVICTION EVICTION})"状态。
+     * <p>
      * Attempt to place the pooled object in the
      * {@link PooledObjectState#EVICTION} state.
      *
@@ -130,6 +132,8 @@ public interface PooledObject<T> extends Comparable<PooledObject<T>> {
     boolean startEvictionTest();
 
     /**
+     * 通知空闲对象队列，驱逐测试已经结束。
+     * <p>
      * Called to inform the object that the eviction test has ended.
      *
      * @param idleQueue The queue if idle objects to which the object should be
@@ -155,6 +159,8 @@ public interface PooledObject<T> extends Comparable<PooledObject<T>> {
     boolean deallocate();
 
     /**
+     * 设置这个池对象为"无效({@link PooledObjectState#INVALID INVALID})"状态。
+     * <p>
      * Sets the state to {@link PooledObjectState#INVALID INVALID}
      */
     void invalidate();
@@ -190,6 +196,8 @@ public interface PooledObject<T> extends Comparable<PooledObject<T>> {
     PooledObjectState getState();
 
     /**
+     * 标记池对象为"被废弃({@link PooledObjectState#ABANDONED ABANDONED})"状态。
+     * <p>
      * Marks the pooled object as abandoned.
      */
     void markAbandoned();

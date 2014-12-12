@@ -36,6 +36,7 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 
 import org.apache.commons.pool2.PooledObject;
+import org.apache.commons.pool2.PooledObjectFactory;
 import org.apache.commons.pool2.SwallowedExceptionListener;
 
 /**
@@ -260,6 +261,12 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
+     * 返回"对象池"是否使用空闲对象的LIFO(后进先出)行为，总是从对象池中返回最近使用的对象；
+     * 或者，使用FIFO(先进先出)队列，对象池总是返回空闲对象池中最老的那个对象。
+     * <p>
+     * 默认是{@code true}，即使用LIFO(后进先出)行为。
+     * <p>
+     * 
      * Returns whether the pool has LIFO (last in, first out) behaviour with
      * respect to idle objects - always returning the most recently used object
      * from the pool, or as a FIFO (first in, first out) queue, where the pool
@@ -397,6 +404,18 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
+     * 返回对象池中的空闲对象是否会被"空闲对象驱逐者"验证其有效性
+     * (见{@link #setTimeBetweenEvictionRunsMillis(long)})。
+     * <p>
+     * 校验是通过与该对象池相关的池对象工厂的
+     * {@link PooledObjectFactory#validateObject(PooledObject) validateObject(PooledObject)}
+     * 方法进行的。
+     * <p>
+     * 如果对象校验失败，则它会从对象池中被删除并销毁。
+     * <p>
+     * 默认是 {@code false}，池对象不会被"空闲对象驱逐者"验证其有效性。
+     * <p>
+     * 
      * Returns whether objects sitting idle in the pool will be validated by the
      * idle object evictor (if any - see
      * {@link #setTimeBetweenEvictionRunsMillis(long)}). Validation is performed
@@ -447,6 +466,13 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
+     * 设置"空闲对象驱逐者线程"间隔运行之间的休眠毫秒数。（同时，会立即启动"空闲对象驱逐者线程"）
+     * <p>
+     * 如果该值是非正整数，没有"空闲对象驱逐者线程"将运行。
+     * <p>
+     * 默认是 {@code -1}，即没有"空闲对象驱逐者线程"后台运行着。
+     * <p>
+     * 
      * Sets the number of milliseconds to sleep between runs of the idle
      * object evictor thread. When non-positive, no idle object evictor thread
      * will be run.
@@ -459,10 +485,20 @@ public abstract class BaseGenericObjectPool<T> {
     public final void setTimeBetweenEvictionRunsMillis(
             long timeBetweenEvictionRunsMillis) {
         this.timeBetweenEvictionRunsMillis = timeBetweenEvictionRunsMillis;
-        startEvictor(timeBetweenEvictionRunsMillis);
+        // 启动"空闲对象驱逐者线程"
+        this.startEvictor(timeBetweenEvictionRunsMillis);
     }
 
     /**
+     * 返回空闲对象驱逐者线程在每轮运行期间要检测的对象的最大数量。
+     * <p>
+     * 如果该值是正数，一轮执行的测试数量将会是配置的值和对象池的空闲实例数量的最低值；
+     * 如果该值是负数，一轮执行的测试数量将会是{@code ceil({@link #getNumIdle}/abs({@link #getNumTestsPerEvictionRun}))}，
+     * 这意味着，如果该值是{@code -n}，每次运行的测试数量大概是空闲对象的{@code 1/n}。
+     * <p>
+     * 默认是每轮测试{@code 3}个空闲对象。
+     * <p>
+     * 
      * Returns the maximum number of objects to examine during each run (if any)
      * of the idle object evictor thread. When positive, the number of tests
      * performed for a run will be the minimum of the configured value and the
@@ -502,7 +538,13 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
-     * Returns the minimum amount of time an object may sit idle in the pool
+     * 返回对象池中一个空闲对象的最大可空闲时间，在被空闲对象驱逐者驱逐之前。
+     * <p>
+     * 如果该值是非正数，则在空闲期间没有对象会从对象池中被驱逐出去。
+     * <p>
+     * 默认是 {@code 30}分钟，即只要空闲对象的空闲时间超过30分钟，都会立刻从对象池中被驱逐出去。
+     * <p>
+     * Returns the maximum amount of time an object may sit idle in the pool
      * before it is eligible for eviction by the idle object evictor (if any -
      * see {@link #setTimeBetweenEvictionRunsMillis(long)}). When non-positive,
      * no objects will be evicted from the pool due to idle time alone.
@@ -536,6 +578,17 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
+     * 返回对象池中一个空闲对象的最小可空闲时间，在被空闲对象驱逐者驱逐之前。
+     * <p>
+     * 其它额外条件是，对象池中至少保留{@code minIdle}个对象实例。
+     * <p>
+     * 此设置会被{@link #getMinEvictableIdleTimeMillis()}的返回值覆盖
+     * (也就是说，如果{@link #getMinEvictableIdleTimeMillis()}的返回值是正整数，
+     * 则{@link #getSoftMinEvictableIdleTimeMillis()}被忽略)。
+     * （<font color="red">从{@link GenericObjectPool#evict()}实现看，这里描述的不对！</font>）
+     * <p>
+     * 默认是 {@code -1}，即对象只要一有空闲，就被纳入到驱逐对象列表中。
+     * <p>
      * Returns the minimum amount of time an object may sit idle in the pool
      * before it is eligible for eviction by the idle object evictor (if any -
      * see {@link #setTimeBetweenEvictionRunsMillis(long)}),
@@ -663,6 +716,8 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
+     * 校验"对象池"还打开着。
+     * <p>
      * Verifies that the pool is open.
      * @throws IllegalStateException if the pool is closed.
      */
