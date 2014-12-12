@@ -17,6 +17,8 @@
 package org.apache.commons.pool2;
 
 /**
+ * 提供可能的"池对象的状态"表示。
+ * <p>
  * Provides the possible states that a {@link PooledObject} may be in.
  *
  * @version $Revision: $
@@ -25,17 +27,17 @@ package org.apache.commons.pool2;
  */
 public enum PooledObjectState {
     /**
-     * In the queue, not in use.
+     * In the queue, not in use. (在空闲队列中)
      */
     IDLE,
 
     /**
-     * In use.
+     * In use. (使用中)
      */
     ALLOCATED,
 
     /**
-     * In the queue, currently being tested for possible eviction.
+     * In the queue, currently being tested for possible eviction. (在空闲队列中，目前正在被驱逐检测中)
      */
     EVICTION,
 
@@ -50,7 +52,7 @@ public enum PooledObjectState {
     EVICTION_RETURN_TO_HEAD,
 
     /**
-     * In the queue, currently being validated.
+     * In the queue, currently being validated. (在空闲队列中，目前正在有效性校验中)
      */
     VALIDATION,
 
@@ -72,17 +74,17 @@ public enum PooledObjectState {
 
     /**
      * Failed maintenance (e.g. eviction test or validation) and will be / has
-     * been destroyed
+     * been destroyed (失败的维护，并将会被销毁)
      */
     INVALID,
 
     /**
-     * Deemed abandoned, to be invalidated.
+     * Deemed abandoned, to be invalidated. (视为废弃，是无效的)
      */
     ABANDONED,
 
     /**
-     * Returning to the pool.
+     * Returning to the pool. (正在返回给对象池)
      */
     RETURNING
 }
