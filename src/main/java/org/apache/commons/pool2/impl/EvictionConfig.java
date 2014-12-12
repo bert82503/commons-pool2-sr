@@ -21,6 +21,7 @@ package org.apache.commons.pool2.impl;
  * <p>
  * <font color="red">此类是不可变的，且是线程安全的。</font>
  * <p>
+ * 
  * This class is used by pool implementations to pass configuration information
  * to {@link EvictionPolicy} instances. The {@link EvictionPolicy} may also have
  * its own specific configuration attributes.
