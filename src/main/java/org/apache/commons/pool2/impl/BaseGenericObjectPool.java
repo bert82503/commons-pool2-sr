@@ -1101,15 +1101,23 @@ public abstract class BaseGenericObjectPool<T> {
     // Inner classes
 
     /**
-     * "空闲对象的驱逐者"计时器任务。
+     * "空闲对象的驱逐者"定时器任务，继承自{@link TimerTask}。
      * <p>
      * The idle object evictor {@link TimerTask}.
      *
-     * @see GenericKeyedObjectPool#setTimeBetweenEvictionRunsMillis
+     * @see GenericObjectPool#GenericObjectPool(PooledObjectFactory, GenericObjectPoolConfig)
+     * @see GenericKeyedObjectPool#setTimeBetweenEvictionRunsMillis(long)
      */
     class Evictor extends TimerTask {
+
         /**
-         * Run pool maintenance.  Evict objects qualifying for eviction and then
+         * 运行对象池维护线程。
+         * 驱逐对象具有驱逐者的资格，同时保证空闲实例可用的最小数量。
+         * 因为调用"驱逐者线程"的定时器是被所有对象池共享的，
+         * 但对象池可能存在不同的类加载器中，所以驱逐者必须确保采取的任何行为
+         * 都得在与对象池相关的工厂的类加载器下。
+         * <p>
+         * Run pool maintenance. Evict objects qualifying for eviction and then
          * ensure that the minimum number of idle instances are available.
          * Since the Timer that invokes Evictors is shared for all Pools but
          * pools may exist in different class loaders, the Evictor ensures that
@@ -1121,13 +1129,13 @@ public abstract class BaseGenericObjectPool<T> {
             ClassLoader savedClassLoader =
                     Thread.currentThread().getContextClassLoader();
             try {
-                // Set the class loader for the factory
+                // Set the class loader for the factory (设置工厂的类加载器)
                 Thread.currentThread().setContextClassLoader(
                         factoryClassLoader);
 
-                // Evict from the pool (从池中驱逐)
+                // Evict from the pool (从对象池中驱逐)
                 try {
-                    evict();
+                    evict(); // 抽象方法
                 } catch(Exception e) {
                     swallowException(e);
                 } catch(OutOfMemoryError oome) {
@@ -1135,9 +1143,9 @@ public abstract class BaseGenericObjectPool<T> {
                     // in case error is recoverable
                     oome.printStackTrace(System.err);
                 }
-                // Re-create idle instances. (重新创建空闲实例)
+                // Re-create idle instances. (重新创建"空闲池对象"实例)
                 try {
-                    ensureMinIdle();
+                    ensureMinIdle(); // 抽象方法
                 } catch (Exception e) {
                     swallowException(e);
                 }
