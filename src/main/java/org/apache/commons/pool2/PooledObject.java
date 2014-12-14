@@ -120,7 +120,7 @@ public interface PooledObject<T> extends Comparable<PooledObject<T>> {
     String toString();
 
     /**
-     * 视图将这个池对象设置为"驱逐({@link PooledObjectState#EVICTION EVICTION})"状态。
+     * 试图将"空闲"池对象设置为"驱逐检测中({@link PooledObjectState#EVICTION EVICTION})"状态。
      * <p>
      * Attempt to place the pooled object in the
      * {@link PooledObjectState#EVICTION} state.
