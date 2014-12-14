@@ -42,6 +42,8 @@ import org.apache.commons.pool2.SwallowedExceptionListener;
 /**
  * 为"可配置的对象池({@link GenericObjectPool})"提供通用的功能。
  * <p>
+ * 此类存在的主要原因是减少两个对象池实现的重复代码。
+ * <p>
  * Base class that provides common functionality for {@link GenericObjectPool}
  * and {@link GenericKeyedObjectPool}. The primary reason this class exists is
  * reduce code duplication between the two pool implementations.
@@ -56,53 +58,74 @@ import org.apache.commons.pool2.SwallowedExceptionListener;
  */
 public abstract class BaseGenericObjectPool<T> {
 
-    // Constants
+    // Constants (常量)
     /**
      * The size of the caches used to store historical data for some attributes
      * so that rolling means may be calculated.
+     * 用于存储一些属性的历史数据的缓存大小
      */
     public static final int MEAN_TIMING_STATS_CACHE_SIZE = 100;
 
-    // Configuration attributes
+    // Configuration attributes (配置属性，全部使用volatile实现线程之间的可见性)
+    /** 对象池在某一个时刻拥有的最大池对象数量 (默认是无限个) */
     private volatile int maxTotal =
             GenericKeyedObjectPoolConfig.DEFAULT_MAX_TOTAL;
+    // 获取池对象
+    /** 池对象被耗尽时，操作是否被阻塞 (默认是阻塞) */
     private volatile boolean blockWhenExhausted =
             BaseObjectPoolConfig.DEFAULT_BLOCK_WHEN_EXHAUSTED;
+    /** 获取池对象的最大等待时间ms (默认是无限等待) */
     private volatile long maxWaitMillis =
             BaseObjectPoolConfig.DEFAULT_MAX_WAIT_MILLIS;
+    /** 对象池的使用方式 (默认是"先进先出"栈方式) */
     private volatile boolean lifo = BaseObjectPoolConfig.DEFAULT_LIFO;
+    // "池对象的有效性"检测
+    /** 在"创建池对象"时，检测其有效性 (默认是不检测) */
     private volatile boolean testOnCreate =
             BaseObjectPoolConfig.DEFAULT_TEST_ON_CREATE;
+    /** 在"借用池对象"时，检测其有效性 (默认是不检测) */
     private volatile boolean testOnBorrow =
             BaseObjectPoolConfig.DEFAULT_TEST_ON_BORROW;
+    /** 在"返回池对象"时，检测其有效性 (默认是不检测) */
     private volatile boolean testOnReturn =
             BaseObjectPoolConfig.DEFAULT_TEST_ON_RETURN;
+    /** 在"池对象空闲"时，检测其有效性 (默认是不检测) */
+    // "空闲对象的驱逐回收策略"检测
     private volatile boolean testWhileIdle =
             BaseObjectPoolConfig.DEFAULT_TEST_WHILE_IDLE;
+    /** 空闲对象的驱逐者线程的运行间隔时间ms (默认是不运行) */
     private volatile long timeBetweenEvictionRunsMillis =
             BaseObjectPoolConfig.DEFAULT_TIME_BETWEEN_EVICTION_RUNS_MILLIS;
+    /** 每次驱逐者线程运行的检测数量 (默认是3个) */
     private volatile int numTestsPerEvictionRun =
             BaseObjectPoolConfig.DEFAULT_NUM_TESTS_PER_EVICTION_RUN;
+    /** 对象池中一个空闲对象的最大可空闲时间ms (默认是30分钟) */
     private volatile long minEvictableIdleTimeMillis =
             BaseObjectPoolConfig.DEFAULT_MIN_EVICTABLE_IDLE_TIME_MILLIS;
+    /** 对象池中一个空闲对象的最小可空闲时间ms (默认是空闲对象立刻被驱逐) */
     private volatile long softMinEvictableIdleTimeMillis =
             BaseObjectPoolConfig.DEFAULT_SOFT_MIN_EVICTABLE_IDLE_TIME_MILLIS;
+    /** 驱逐回收策略 */
     private volatile EvictionPolicy<T> evictionPolicy;
 
 
     // Internal (primarily state) attributes (内部属性(主要是状态))
-    /** 关闭锁 */
+    /** 关闭操作同步对象 */
     final Object closeLock = new Object();
+    /** "对象池是否已被关闭"标记 (volatile实现线程之间的可见性) */
     volatile boolean closed = false;
-    /** 驱逐锁 */
+    // 驱逐回收策略
+    /** 驱逐操作同步对象 */
     final Object evictionLock = new Object();
-    /** 驱逐者 */
+    /** 空闲对象驱逐者的定时器任务 */
     private Evictor evictor = null; // @GuardedBy("evictionLock")
+    /** 驱逐迭代器 */
     Iterator<PooledObject<T>> evictionIterator = null; // @GuardedBy("evictionLock")
-    /*
+    /**
      * Class loader for evictor thread to use since in a J2EE or similar
      * environment the context class loader for the evictor thread may have
      * visibility of the correct factory. See POOL-161.
+     * 驱逐者线程的类加载器
      */
     private final ClassLoader factoryClassLoader;
 
@@ -132,9 +155,12 @@ public abstract class BaseGenericObjectPool<T> {
     private final LinkedList<Long> idleTimes = new LinkedList<Long>(); // @GuardedBy("activeTimes") - except in initStats()
     /** 各个池对象的等待时间统计 */
     private final LinkedList<Long> waitTimes = new LinkedList<Long>(); // @GuardedBy("activeTimes") - except in initStats()
-    // 借用池对象的最大等待时间(ms)
+    // 池对象借用等待
+    /** 池对象借用等待同步锁 */
     private final Object maxBorrowWaitTimeMillisLock = new Object();
+    /** 池对象借用的最大等待时间ms (默认是不等待) */
     private volatile long maxBorrowWaitTimeMillis = 0; // @GuardedBy("maxBorrowWaitTimeMillisLock")
+    /** "被吞掉的异常"监视器 */
     private SwallowedExceptionListener swallowedExceptionListener = null;
 
 
@@ -466,11 +492,18 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
-     * 设置"空闲对象驱逐者线程"间隔运行之间的休眠毫秒数。（同时，会立即启动"空闲对象驱逐者线程"）
+     * 设置"空闲对象的驱逐者线程"间隔运行之间的休眠毫秒数。（同时，会立即启动"空闲对象的驱逐者线程"）
      * <p>
-     * 如果该值是非正整数，没有"空闲对象驱逐者线程"将运行。
+     * 如果该值是非正数，没有"空闲对象的驱逐者线程"将运行。
      * <p>
-     * 默认是 {@code -1}，即没有"空闲对象驱逐者线程"后台运行着。
+     * 默认是 {@code -1}，即没有"空闲对象的驱逐者线程"在后台运行着。
+     * <p>
+     * 上一层入口：{@link GenericObjectPool#setConfig(GenericObjectPoolConfig)}<br>
+     * 顶层入口：{@link GenericObjectPool#GenericObjectPool(PooledObjectFactory, GenericObjectPoolConfig)}，
+     * 在最后还会调用{@link #startEvictor(long)}来再次启动"空闲对象的驱逐者线程"。<br>
+     * 这样在初始化时，这里创建的"驱逐者线程"就多余了，会立刻被销毁掉。<br>
+     * 但这里为什么要这样实现呢？<br>
+     * 我的理解是：为了能动态更新"驱逐者线程"的调度间隔时间。
      * <p>
      * 
      * Sets the number of milliseconds to sleep between runs of the idle
@@ -485,7 +518,7 @@ public abstract class BaseGenericObjectPool<T> {
     public final void setTimeBetweenEvictionRunsMillis(
             long timeBetweenEvictionRunsMillis) {
         this.timeBetweenEvictionRunsMillis = timeBetweenEvictionRunsMillis;
-        // 启动"空闲对象驱逐者线程"
+        // 启动"驱逐者定时器"
         this.startEvictor(timeBetweenEvictionRunsMillis);
     }
 
@@ -683,6 +716,8 @@ public abstract class BaseGenericObjectPool<T> {
     public abstract void close();
 
     /**
+     * 对象池实例是否已被关闭。
+     * <p>
      * Has this pool instance been closed.
      * @return <code>true</code> when this pool has been closed.
      */
@@ -722,24 +757,29 @@ public abstract class BaseGenericObjectPool<T> {
      * @throws IllegalStateException if the pool is closed.
      */
     final void assertOpen() throws IllegalStateException {
-        if (isClosed()) {
+        if (this.isClosed()) {
             throw new IllegalStateException("Pool not open");
         }
     }
 
     /**
-     * <p>Starts the evictor with the given delay. If there is an evictor
+     * 启动"空闲对象的驱逐者线程"。
+     * <p>
+     * 当该方法被调用时，有一个驱逐者线程运行着，则会停止它并使用一个新的驱逐者线程替换它。
+     * <p>
+     * Starts the evictor with the given delay. If there is an evictor
      * running when this method is called, it is stopped and replaced with a
      * new evictor with the specified delay.</p>
      *
-     * <p>This method needs to be final, since it is called from a constructor.
+     * <p>This method needs to be final, since it is called from a constructor. (因为它被一个构造器调用)
      * See POOL-195.</p>
      *
-     * @param delay time in milliseconds before start and between eviction runs
+     * @param delay time in milliseconds before start and between eviction runs (驱逐者线程运行的开始和间隔时间毫秒数)
      */
     final void startEvictor(long delay) {
-        synchronized (evictionLock) {
+        synchronized (evictionLock) { // 同步锁
             if (null != evictor) {
+            	// 先释放申请的资源
                 EvictionTimer.cancel(evictor);
                 evictor = null;
                 evictionIterator = null;
@@ -752,6 +792,8 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
+     * 试图确保配置的对象池中可用空闲实例的最小数量。
+     * <p>
      * Tries to ensure that the configured minimum number of idle instances are
      * available in the pool.
      * @throws Exception if an error occurs creating idle instances
