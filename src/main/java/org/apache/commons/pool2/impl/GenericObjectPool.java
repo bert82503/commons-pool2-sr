@@ -95,7 +95,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     }
 
     /**
-     * 使用特定配置来创建一个新的"通用对象池"实例。
+     * 使用特定的配置来创建一个新的"通用对象池"实例。
      * <p>
      * Create a new <code>GenericObjectPool</code> using a specific
      * configuration.
@@ -118,9 +118,9 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
         }
         this.factory = factory;
 
-        setConfig(config);
+        this.setConfig(config);
 
-        startEvictor(getTimeBetweenEvictionRunsMillis());
+        this.startEvictor(this.getTimeBetweenEvictionRunsMillis());
     }
 
     /**
@@ -307,7 +307,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
 
 
     /**
-     * 设置基池配置。
+     * 设置对象池的基本配置。
      * <p>
      * Sets the base pool configuration.
      *
@@ -336,7 +336,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     }
 
     /**
-     * 设置"被遗弃的对象移除"配置。
+     * 设置"被废弃的对象移除"配置。
      * <p>
      * Sets the abandoned object removal configuration.
      *
@@ -756,6 +756,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      * {@inheritDoc}
      * <p>
      * 按顺序对被审查的对象进行连续驱逐检测，对象是以"从最老到最年轻"的顺序循环。
+     * <p>
      * Successive activations of this method examine objects in sequence,
      * cycling through objects in oldest-to-youngest order.
      */
@@ -764,7 +765,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     	// 1. 确保"对象池"还打开着
         assertOpen();
 
-        // 2. 对所有空闲对象进行驱逐检测
+        // 2. 对"所有空闲对象"进行驱逐检测
         if (idleObjects.size() > 0) {
 
             PooledObject<T> underTest = null; // 测试中的池对象
@@ -898,7 +899,6 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
             p.setLogAbandoned(true);
         }
 
-        // Bug 创建计数器多加了1次吧？（待确认）
         createdCount.incrementAndGet();
         // 3. 将新创建的池对象追加到"池的所有对象映射表"中
         allObjects.put(p.getObject(), p);
@@ -933,10 +933,17 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
 
     @Override
     void ensureMinIdle() throws Exception {
-        ensureIdle(getMinIdle(), true);
+        this.ensureIdle(this.getMinIdle(), true);
     }
 
     /**
+     * 试图确保对象池中存在的{@code idleCount}个空闲实例。
+     * <p>
+     * 创建并添加空闲实例，直到空闲实例数量({@link #getNumIdle()})达到{@code idleCount}个，
+     * 或者池对象的总数(空闲、检出、被创建)达到{@link #getMaxTotal()}。
+     * 如果{@code always}是false，则不会创建实例，除非线程在等待对象池中的实例检出。
+     * <p>
+     * 
      * Tries to ensure that {@code idleCount} idle instances exist in the pool.
      * <p>
      * Creates and adds idle instances until either {@link #getNumIdle()} reaches {@code idleCount}
@@ -944,8 +951,9 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      * {@link #getMaxTotal()}. If {@code always} is false, no instances are created unless
      * there are threads waiting to check out instances from the pool.
      *
-     * @param idleCount the number of idle instances desired
+     * @param idleCount the number of idle instances desired (期望的空闲实例数量)
      * @param always true means create instances even if the pool has no threads waiting
+     * 			(true意味着即使对象池没有线程等待，也会创建实例)
      * @throws Exception if the factory's makeObject throws
      */
     private void ensureIdle(int idleCount, boolean always) throws Exception {
@@ -960,9 +968,10 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
                 // create will work. Give up.
                 break;
             }
-            if (getLifo()) {
+            // 新的池对象可以立刻被使用
+            if (this.getLifo()) { // LIFO(后进先出)
                 idleObjects.addFirst(p);
-            } else {
+            } else { // FIFO(先进先出)
                 idleObjects.addLast(p);
             }
         }
