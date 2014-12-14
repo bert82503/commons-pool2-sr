@@ -22,11 +22,23 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 /**
+ * 提供一个所有对象池共享的"空闲对象的驱逐定时器"。
+ * 
+ * 此类包装标准的定时器({@link Timer})，并追踪有多少个对象池使用它。
+ * 
+ * 如果没有对象池使用这个定时器，它会被取消。这样可以防止线程一直运行着
+ * (这会导致内存泄漏)，防止应用程序关闭或重新加载。
+ * <p>
+ * 此类是包范围的，以防止其被纳入到池框架的公共API中。
+ * <p>
+ * <font color="red">此类是线程安全的！</font>
+ * <p>
+ * 
  * Provides a shared idle object eviction timer for all pools. This class wraps
  * the standard {@link Timer} and keeps track of how many pools are using it.
  * If no pools are using the timer, it is canceled. This prevents a thread
  * being left running which, in application server environments, can lead to
- * memory leads and/or prevent applications from shutting down or reloading
+ * memory leaks and/or prevent applications from shutting down or reloading
  * cleanly.
  * <p>
  * This class has package scope to prevent its inclusion in the pool public API.
@@ -38,10 +50,10 @@ import java.util.TimerTask;
  */
 class EvictionTimer {
 
-    /** Timer instance */
+    /** Timer instance (定时器) */
     private static Timer _timer; //@GuardedBy("this")
 
-    /** Static usage count tracker */
+    /** Static usage count tracker (使用计数追踪器) */
     private static int _usageCount; //@GuardedBy("this")
 
     /** Prevent instantiation */
@@ -50,13 +62,17 @@ class EvictionTimer {
     }
 
     /**
+     * 添加指定的驱逐任务到这个定时器。
+     * 任务，通过调用该方法添加的，必须调用{@link #cancel(TimerTask)}来取消这个任务，
+     * 以防止内存或消除泄漏。
+     * <p>
      * Add the specified eviction task to the timer. Tasks that are added with a
      * call to this method *must* call {@link #cancel(TimerTask)} to cancel the
      * task to prevent memory and/or thread leaks in application server
      * environments.
-     * @param task      Task to be scheduled
-     * @param delay     Delay in milliseconds before task is executed
-     * @param period    Time in milliseconds between executions
+     * @param task      Task to be scheduled (定时调度任务)
+     * @param delay     Delay in milliseconds before task is executed (任务执行前的等待时间)
+     * @param period    Time in milliseconds between executions (执行间隔时间)
      */
     static synchronized void schedule(TimerTask task, long delay, long period) {
         if (null == _timer) {
@@ -77,26 +93,26 @@ class EvictionTimer {
     }
 
     /**
+     * 从定时器中删除指定的驱逐者任务。
+     * <p>
      * Remove the specified eviction task from the timer.
-     * @param task      Task to be scheduled
+     * 
+     * @param task      Task to be scheduled (定时调度任务)
      */
     static synchronized void cancel(TimerTask task) {
-        task.cancel();
+        task.cancel(); // 1. 将任务的状态标记为"取消(CANCELLED)"状态
         _usageCount--;
-        if (_usageCount == 0) {
+        if (_usageCount == 0) { // 2. 如果没有对象池使用这个定时器，定时器就会被取消
             _timer.cancel();
             _timer = null;
         }
     }
 
     /**
-     * {@link PrivilegedAction} used to get the ContextClassLoader
+     * {@link PrivilegedAction} used to get the ContextClassLoader (获取"上下文类加载器")
      */
     private static class PrivilegedGetTccl implements PrivilegedAction<ClassLoader> {
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         public ClassLoader run() {
             return Thread.currentThread().getContextClassLoader();
@@ -104,7 +120,7 @@ class EvictionTimer {
     }
 
     /**
-     * {@link PrivilegedAction} used to set the ContextClassLoader
+     * {@link PrivilegedAction} used to set the ContextClassLoader (设置"上下文类加载器")
      */
     private static class PrivilegedSetTccl implements PrivilegedAction<Void> {
 
@@ -119,9 +135,6 @@ class EvictionTimer {
             this.cl = cl;
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         public Void run() {
             Thread.currentThread().setContextClassLoader(cl);
