@@ -36,7 +36,7 @@ import org.apache.commons.pool2.PooledObject;
 public interface EvictionPolicy<T> {
 
     /**
-     * 如果对象池中的空闲对象是否应该被驱逐，调用此方法来测试。（驱逐行为实现）
+     * 一个对象池中的空闲对象是否应该被驱逐，调用此方法来测试。（驱逐行为声明）
      * <p>
      * This method is called to test if an idle object in the pool should be
      * evicted or not.

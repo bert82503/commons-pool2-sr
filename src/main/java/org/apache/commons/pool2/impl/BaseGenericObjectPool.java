@@ -114,12 +114,12 @@ public abstract class BaseGenericObjectPool<T> {
     final Object closeLock = new Object();
     /** "对象池是否已被关闭"标记 (volatile实现线程之间的可见性) */
     volatile boolean closed = false;
-    // 驱逐回收策略
-    /** 驱逐操作同步对象 */
+    // 空闲对象的驱逐回收策略
+    /** 用于初始化"驱逐者线程"的同步对象 */
     final Object evictionLock = new Object();
-    /** 空闲对象驱逐者的定时器任务 */
+    /** "空闲对象"驱逐者线程 */
     private Evictor evictor = null; // @GuardedBy("evictionLock")
-    /** 驱逐迭代器 */
+    /** 驱逐检测对象("空闲池对象")的迭代器 */
     Iterator<PooledObject<T>> evictionIterator = null; // @GuardedBy("evictionLock")
     /**
      * Class loader for evictor thread to use since in a J2EE or similar
@@ -492,9 +492,9 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
-     * 设置"空闲对象的驱逐者线程"间隔运行之间的休眠毫秒数。（同时，会立即启动"空闲对象的驱逐者线程"）
+     * 设置"空闲对象的驱逐者线程"运行调度间隔时间。（同时，会立即启动"驱逐者线程"）
      * <p>
-     * 如果该值是非正数，没有"空闲对象的驱逐者线程"将运行。
+     * 如果该值是非正数，则没有"空闲对象的驱逐者线程"将运行。
      * <p>
      * 默认是 {@code -1}，即没有"空闲对象的驱逐者线程"在后台运行着。
      * <p>
@@ -503,7 +503,7 @@ public abstract class BaseGenericObjectPool<T> {
      * 在最后还会调用{@link #startEvictor(long)}来再次启动"空闲对象的驱逐者线程"。<br>
      * 这样在初始化时，这里创建的"驱逐者线程"就多余了，会立刻被销毁掉。<br>
      * 但这里为什么要这样实现呢？<br>
-     * 我的理解是：为了能动态更新"驱逐者线程"的调度间隔时间。
+     * 我的理解是：为了能动态地更新"驱逐者线程"的调度间隔时间。
      * <p>
      * 
      * Sets the number of milliseconds to sleep between runs of the idle
@@ -511,14 +511,14 @@ public abstract class BaseGenericObjectPool<T> {
      * will be run.
      *
      * @param timeBetweenEvictionRunsMillis
-     *            number of milliseconds to sleep between evictor runs
+     *            number of milliseconds to sleep between evictor runs ("驱逐者线程"运行的间隔毫秒数)
      *
      * @see #getTimeBetweenEvictionRunsMillis
      */
     public final void setTimeBetweenEvictionRunsMillis(
             long timeBetweenEvictionRunsMillis) {
         this.timeBetweenEvictionRunsMillis = timeBetweenEvictionRunsMillis;
-        // 启动"驱逐者定时器"
+        // 启动"驱逐者线程"
         this.startEvictor(timeBetweenEvictionRunsMillis);
     }
 
@@ -726,9 +726,9 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
-     * 执行{@link numTests}个空闲池对象的驱逐测试，驱逐那些符合驱逐条件的被审查对象。
+     * 执行{@link numTests}个空闲池对象的驱逐测试，驱逐那些符合驱逐条件的被检测对象。
      * <p>
-     * 如果{@code testWhileIdle}为{@code true}，则被审查的对象在访问期间是有效的(无效则会被删除)；
+     * 如果{@code testWhileIdle}为{@code true}，则被检测的对象在访问期间是有效的(无效则会被删除)；
      * 否则，仅有那些池对象的空闲时间超过{@code minEvicableIdleTimeMillis}会被删除。
      * <p>
      * Perform <code>numTests</code> idle object eviction tests, evicting
@@ -765,7 +765,8 @@ public abstract class BaseGenericObjectPool<T> {
     /**
      * 启动"空闲对象的驱逐者线程"。
      * <p>
-     * 当该方法被调用时，有一个驱逐者线程运行着，则会停止它并使用一个新的驱逐者线程替换它。
+     * 如果有一个"驱逐者线程"({@link Evictor})运行着，则会先停止它；
+     * 然后创建一个新的"驱逐者线程"，并使用"驱逐者定时器"({@link EvictionTimer})进行调度。
      * <p>
      * Starts the evictor with the given delay. If there is an evictor
      * running when this method is called, it is stopped and replaced with a
@@ -774,7 +775,7 @@ public abstract class BaseGenericObjectPool<T> {
      * <p>This method needs to be final, since it is called from a constructor. (因为它被一个构造器调用)
      * See POOL-195.</p>
      *
-     * @param delay time in milliseconds before start and between eviction runs (驱逐者线程运行的开始和间隔时间毫秒数)
+     * @param delay time in milliseconds before start and between eviction runs (驱逐者线程运行的开始和间隔时间 毫秒数)
      */
     final void startEvictor(long delay) {
         synchronized (evictionLock) { // 同步锁
@@ -792,7 +793,7 @@ public abstract class BaseGenericObjectPool<T> {
     }
 
     /**
-     * 试图确保配置的对象池中可用空闲实例的最小数量。
+     * 试图确保配置的对象池中可用"空闲池对象"实例的最小数量。
      * <p>
      * Tries to ensure that the configured minimum number of idle instances are
      * available in the pool.
@@ -1143,7 +1144,7 @@ public abstract class BaseGenericObjectPool<T> {
     // Inner classes
 
     /**
-     * "空闲对象的驱逐者"定时器任务，继承自{@link TimerTask}。
+     * "空闲对象的驱逐者"定时任务，继承自{@link TimerTask}。
      * <p>
      * The idle object evictor {@link TimerTask}.
      *
@@ -1171,12 +1172,13 @@ public abstract class BaseGenericObjectPool<T> {
             ClassLoader savedClassLoader =
                     Thread.currentThread().getContextClassLoader();
             try {
-                // Set the class loader for the factory (设置工厂的类加载器)
+                // Set the class loader for the factory (设置"工厂的类加载器")
                 Thread.currentThread().setContextClassLoader(
                         factoryClassLoader);
 
-                // Evict from the pool (从对象池中驱逐)
+                // Evict from the pool (从"对象池"中驱逐)
                 try {
+                	// 1. 执行numTests个空闲池对象的驱逐测试，驱逐那些符合驱逐条件的被检测对象
                     evict(); // 抽象方法
                 } catch(Exception e) {
                     swallowException(e);
@@ -1187,6 +1189,7 @@ public abstract class BaseGenericObjectPool<T> {
                 }
                 // Re-create idle instances. (重新创建"空闲池对象"实例)
                 try {
+                	// 2. 试图确保配置的对象池中可用"空闲池对象"实例的最小数量
                     ensureMinIdle(); // 抽象方法
                 } catch (Exception e) {
                     swallowException(e);
@@ -1197,4 +1200,5 @@ public abstract class BaseGenericObjectPool<T> {
             }
         }
     }
+
 }

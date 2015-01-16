@@ -22,7 +22,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- * 提供一个所有对象池共享的"空闲对象的驱逐定时器"。
+ * 提供一个所有"对象池"共享的"空闲对象的驱逐定时器"。
  * 
  * 此类包装标准的定时器({@link Timer})，并追踪有多少个对象池使用它。
  * 
@@ -50,13 +50,13 @@ import java.util.TimerTask;
  */
 class EvictionTimer {
 
-    /** Timer instance (定时器) */
+    /** Timer instance (定时器实例) */
     private static Timer _timer; //@GuardedBy("this")
 
     /** Static usage count tracker (使用计数追踪器) */
     private static int _usageCount; //@GuardedBy("this")
 
-    /** Prevent instantiation */
+    /** Prevent instantiation (防止实例化) */
     private EvictionTimer() {
         // Hide the default constructor
     }
@@ -70,7 +70,7 @@ class EvictionTimer {
      * call to this method *must* call {@link #cancel(TimerTask)} to cancel the
      * task to prevent memory and/or thread leaks in application server
      * environments.
-     * @param task      Task to be scheduled (定时调度任务)
+     * @param task      Task to be scheduled (定时调度的任务)
      * @param delay     Delay in milliseconds before task is executed (任务执行前的等待时间)
      * @param period    Time in milliseconds between executions (执行间隔时间)
      */
@@ -88,6 +88,7 @@ class EvictionTimer {
                 AccessController.doPrivileged(new PrivilegedSetTccl(ccl));
             }
         }
+        // 增加"使用计数器"，并调度"任务"
         _usageCount++;
         _timer.schedule(task, delay, period);
     }

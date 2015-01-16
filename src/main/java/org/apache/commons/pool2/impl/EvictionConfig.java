@@ -17,7 +17,7 @@
 package org.apache.commons.pool2.impl;
 
 /**
- * 此类用于将对象池的配置信息传递给驱逐回收策略({@link EvictionPolicy})实例。
+ * 此类用于将对象池的配置信息传递给"驱逐回收策略({@link EvictionPolicy})"实例。
  * <p>
  * <font color="red">此类是不可变的，且是线程安全的。</font>
  * <p>

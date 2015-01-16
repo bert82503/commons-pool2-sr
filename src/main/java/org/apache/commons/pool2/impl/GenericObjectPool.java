@@ -101,11 +101,11 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      * configuration.
      *
      * @param factory   The object factory to be used to create object instances
-     *                  used by this pool
-     * @param config    The configuration to use for this pool instance. The
-     *                  configuration is used by value. Subsequent changes to
+     *                  used by this pool (用于创建"池对象"实例的对象工厂)
+     * @param config    The configuration to use for this pool instance. (用于该对象池实例的配置信息)
+     *                  The configuration is used by value. Subsequent changes to
      *                  the configuration object will not be reflected in the
-     *                  pool.
+     *                  pool. (随后对配置对象的更改将不会反映到对象池中)
      */
     public GenericObjectPool(PooledObjectFactory<T> factory,
             GenericObjectPoolConfig config) {
@@ -119,7 +119,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
         this.factory = factory;
 
         this.setConfig(config);
-
+        // 启动"驱逐者线程"
         this.startEvictor(this.getTimeBetweenEvictionRunsMillis());
     }
 
@@ -763,24 +763,24 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     @Override
     public void evict() throws Exception {
     	// 1. 确保"对象池"还打开着
-        assertOpen();
+        this.assertOpen();
 
-        // 2. 对"所有空闲对象"进行驱逐检测
         if (idleObjects.size() > 0) {
-
             PooledObject<T> underTest = null; // 测试中的池对象
-            EvictionPolicy<T> evictionPolicy = this.getEvictionPolicy(); // 驱逐回收策略
+            // 2. 获取"驱逐回收策略"
+            EvictionPolicy<T> evictionPolicy = this.getEvictionPolicy();
 
             synchronized (evictionLock) { // 驱逐锁定
+            	// 3. 获取"驱逐配置"
                 EvictionConfig evictionConfig = new EvictionConfig(
                 		this.getMinEvictableIdleTimeMillis(),
                 		this.getSoftMinEvictableIdleTimeMillis(),
                 		this.getMinIdle()
-                		); // 驱逐配置
+                		);
 
-                boolean testWhileIdle = this.getTestWhileIdle(); // 是否要在空闲时测试有效性
-
+                // 4. 对所有待检测的"空闲对象"进行驱逐检测
                 for (int i = 0, m = this.getNumTests(); i < m; i++) {
+                	// 4.1 初始化"驱逐检测对象(空闲池对象)的迭代器"
                     if (evictionIterator == null || !evictionIterator.hasNext()) { // 已对所有空闲对象完成一次遍历
                     	// 根据"对象池使用行为"赋值驱逐迭代器
                         if (this.getLifo()) {
@@ -804,23 +804,26 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
                         continue;
                     }
 
-                    // 3. 将池对象标记为开始"驱逐"状态
+                    // 4.2 将"池对象"标记为"开始驱逐状态"
                     if (!underTest.startEvictionTest()) {
                         // Object was borrowed in another thread
                         // Don't count this as an eviction test so reduce i;
                         i--;
                         continue;
                     }
+                    
+                    boolean testWhileIdle = this.getTestWhileIdle(); // 是否要在对象空闲时测试有效性
 
-                    // 4. 进行真正的驱逐校验操作
+                    // 4.3 进行真正的"驱逐检测"操作（EvictionPolicy.evict(...)）
                     if (evictionPolicy.evict(evictionConfig, underTest,
                             idleObjects.size())) {
-                    	// 如果池对象是可驱逐的，则销毁它
+                    	// 4.3.1 如果"池对象"是可驱逐的，则销毁它
                     	this.destroy(underTest);
                         destroyedByEvictorCount.incrementAndGet();
                     } else {
+                    	// 4.3.2 否则，是否允许空闲时进行有效性测试
                         if (testWhileIdle) { // 允许空闲时进行有效性测试
-                        	// 5.1 先激活池对象
+                        	// 4.3.2.1 先激活"池对象"
                             boolean active = false;
                             try {
                                 factory.activateObject(underTest);
@@ -829,15 +832,15 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
                             	this.destroy(underTest);
                                 destroyedByEvictorCount.incrementAndGet();
                             }
-                            // 5.2 使用PooledObjectFactory.validateObject(PooledObject)进行池对象的有效性校验
+                            // 4.3.2.2 使用PooledObjectFactory.validateObject(PooledObject)进行"池对象"的有效性校验
                             if (active) {
                                 if (!factory.validateObject(underTest)) {
-                                	// 如果池对象不是有效的，则销毁它
+                                	// 4.3.2.2.1 如果"池对象"不是有效的，则销毁它
                                 	this.destroy(underTest);
                                     destroyedByEvictorCount.incrementAndGet();
                                 } else {
                                     try {
-                                    	// 如果池对象有效，则还原状态
+                                    	// 4.3.2.2.2 否则，还原"池对象"状态
                                         factory.passivateObject(underTest);
                                     } catch (Exception e) {
                                     	this.destroy(underTest);
@@ -846,7 +849,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
                                 }
                             }
                         }
-                        // 6. 通知空闲对象队列，驱逐测试已经结束
+                        // 4.3.2.3 通知"空闲对象队列"，驱逐测试已经结束
                         if (!underTest.endEvictionTest(idleObjects)) {
                             // TODO - May need to add code here once additional
                             // states are used
@@ -855,7 +858,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
                 }
             }
         }
-        // 7. 是否要"移除被废弃的池对象"
+        // 5. 是否要移除"被废弃的池对象"
         AbandonedConfig ac = this.abandonedConfig;
         if (ac != null && ac.getRemoveAbandonedOnMaintenance()) {
         	this.removeAbandoned(ac);
@@ -906,7 +909,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
     }
 
     /**
-     * 销毁一个包装的池对象。
+     * 销毁一个包装的"池对象"。
      * <p>
      * 
      * Destroys a wrapped pooled object.
@@ -917,9 +920,9 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      *                   cleanly
      */
     private void destroy(PooledObject<T> toDestory) throws Exception {
-    	// 1. 设置这个池对象的状态为"无效(INVALID)"
+    	// 1. 设置这个"池对象"的状态为"无效(INVALID)"
         toDestory.invalidate();
-        // 2. 将这个池对象从空闲对象列表和所有对象列表中移除掉
+        // 2. 将这个"池对象"从"空闲对象列表"和"所有对象列表"中移除掉
         idleObjects.remove(toDestory);
         allObjects.remove(toDestory.getObject());
         try {
@@ -964,11 +967,11 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
         while (idleObjects.size() < idleCount) {
             PooledObject<T> p = this.create();
             if (p == null) {
-                // Can't create objects, no reason to think another call to
+                // Can't create objects (不能创建对象), no reason to think another call to
                 // create will work. Give up.
                 break;
             }
-            // 新的池对象可以立刻被使用
+            // "新的池对象"可以立刻被使用
             if (this.getLifo()) { // LIFO(后进先出)
                 idleObjects.addFirst(p);
             } else { // FIFO(先进先出)
@@ -1157,6 +1160,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
 
     private volatile int maxIdle = GenericObjectPoolConfig.DEFAULT_MAX_IDLE;
     private volatile int minIdle = GenericObjectPoolConfig.DEFAULT_MIN_IDLE;
+    /** 池对象工厂 */
     private final PooledObjectFactory<T> factory;
 
 
@@ -1169,6 +1173,7 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
      * #_maxActive}. Map keys are pooled objects, values are the PooledObject
      * wrappers used internally by the pool.
      */
+    /** 对象池中的所有池对象映射表 */
     private final ConcurrentMap<T, PooledObject<T>> allObjects =
         new ConcurrentHashMap<T, PooledObject<T>>();
     /*
@@ -1188,5 +1193,6 @@ public class GenericObjectPool<T> extends BaseGenericObjectPool<T>
         "org.apache.commons.pool2:type=GenericObjectPool,name=";
 
     // Additional configuration properties for abandoned object tracking
+    /** 被废弃的池对象追踪的配置属性 */
     private volatile AbandonedConfig abandonedConfig = null;
 }
