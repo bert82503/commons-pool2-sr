@@ -17,7 +17,7 @@
 package org.apache.commons.pool2.impl;
 
 /**
- * 驱逐配置，用于将"对象池"实现类的配置信息传递给"驱逐策略({@link EvictionPolicy})"实例。
+ * 驱逐检测配置，用于将"对象池"实现类的配置信息传递给"驱逐检测策略({@link EvictionPolicy})"实例。
  * <p>
  * <font color="red">此类是不可变和线程安全的。</font>
  * <p>
@@ -44,10 +44,11 @@ public class EvictionConfig {
 
 
     /**
-     * 创建一个新的"驱逐回收策略"配置实例。
+     * 创建一个新的"驱逐检测配置"实例。
      * <p>
      * <font color="red">实例是不可变的。</font>
      * <p>
+     * 
      * Create a new eviction configuration with the specified parameters.
      * Instances are immutable.
      *
