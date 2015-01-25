@@ -17,7 +17,7 @@
 package org.apache.commons.pool2.impl;
 
 /**
- * “驱逐检测机制”配置信息，用于将"对象池"实现类的配置信息传递给"驱逐策略({@link EvictionPolicy})"实例。
+ * 驱逐配置，用于将"对象池"实现类的配置信息传递给"驱逐策略({@link EvictionPolicy})"实例。
  * <p>
  * <font color="red">此类是不可变和线程安全的。</font>
  * <p>
