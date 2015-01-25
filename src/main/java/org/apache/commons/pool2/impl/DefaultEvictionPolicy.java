@@ -19,14 +19,14 @@ package org.apache.commons.pool2.impl;
 import org.apache.commons.pool2.PooledObject;
 
 /**
- * 提供用在对象池的"驱逐回收策略"的默认实现，继承自{@link EvictionPolicy}。
+ * 提供用于对象池的"驱逐策略({@link EvictionPolicy})"的默认实现。
  * <p>
- * 如果满足以下条件，对象将被驱逐：
+ * 如果满足以下条件，空闲池对象将被驱逐：
  * <ul>
- * <li>池对象的空闲时间超过{@link GenericObjectPool#getMinEvictableIdleTimeMillis()}
- * <li>对象池中的空闲对象数超过{@link GenericObjectPool#getMinIdle()}，且池对象的空闲时间超过{@link GenericObjectPool#getSoftMinEvictableIdleTimeMillis()}
+ * <li>池对象的空闲时间超过{@link GenericObjectPool#getMinEvictableIdleTimeMillis() minEvictableIdleTimeMillis}
+ * <li>对象池中的空闲对象数超过{@link GenericObjectPool#getMinIdle() minIdle}，且池对象的空闲时间超过{@link GenericObjectPool#getSoftMinEvictableIdleTimeMillis() softMinEvictableIdleTimeMillis}
  * </ul>
- * <font color="red">此类是不可变的，且是线程安全的。</font>
+ * <font color="red">此类是不可变和线程安全的。</font>
  * <p>
  * 
  * Provides the default implementation of {@link EvictionPolicy} used by the
@@ -43,7 +43,7 @@ import org.apache.commons.pool2.PooledObject;
  * </ul>
  * This class is immutable and thread-safe.
  *
- * @param <T> the type of objects in the pool (对象池中对象的类型)
+ * @param <T> the type of objects in the pool (池对象的类型)
  *
  * @version $Revision: $
  *
@@ -52,12 +52,12 @@ import org.apache.commons.pool2.PooledObject;
 public class DefaultEvictionPolicy<T> implements EvictionPolicy<T> {
 
     /**
-     * 如果对象池中的空闲对象是否应该被驱逐，调用此方法来测试。（驱逐行为实现）
+     * 对象池中的这个空闲对象是否应该被驱逐，调用此方法来测试。（驱逐行为实现）
      * <p>
-     * 如果满足以下条件，对象将被驱逐：
+     * 如果满足以下条件，空闲池对象将被驱逐：
 	 * <ul>
-	 * <li>池对象的空闲时间超过{@link GenericObjectPool#getMinEvictableIdleTimeMillis()}
-	 * <li>对象池中的空闲对象数超过{@link GenericObjectPool#getMinIdle()}，且池对象的空闲时间超过{@link GenericObjectPool#getSoftMinEvictableIdleTimeMillis()}
+	 * <li>池对象的空闲时间超过{@link GenericObjectPool#getMinEvictableIdleTimeMillis() minEvictableIdleTimeMillis}
+	 * <li>对象池中的空闲对象数超过{@link GenericObjectPool#getMinIdle() minIdle}，且池对象的空闲时间超过{@link GenericObjectPool#getSoftMinEvictableIdleTimeMillis() softMinEvictableIdleTimeMillis}
 	 * </ul>
      */
     @Override

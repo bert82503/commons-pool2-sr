@@ -19,15 +19,15 @@ package org.apache.commons.pool2.impl;
 import org.apache.commons.pool2.PooledObject;
 
 /**
- * 为了提供对象池的一个自定义"驱逐回收策略"，
+ * 为了提供对象池的一个自定义"驱逐策略"，
  * 使用者必须提供该接口的一个实现(如{@link DefaultEvictionPolicy})。
  * <p>
  * 
  * To provide a custom eviction policy (i.e. something other than {@link
- * DefaultEvictionPolicy} for a pool, users must provide an implementation of
+ * DefaultEvictionPolicy}) for a pool, users must provide an implementation of
  * this interface that provides the required eviction policy.
  *
- * @param <T> the type of objects in the pool (对象池中对象的类型)
+ * @param <T> the type of objects in the pool (池对象的类型)
  *  
  * @version $Revision: $
  *
@@ -36,7 +36,7 @@ import org.apache.commons.pool2.PooledObject;
 public interface EvictionPolicy<T> {
 
     /**
-     * 一个对象池中的空闲对象是否应该被驱逐，调用此方法来测试。（驱逐行为声明）
+     * 对象池中的这个空闲对象是否应该被驱逐，调用此方法来测试。（驱逐行为声明）
      * <p>
      * This method is called to test if an idle object in the pool should be
      * evicted or not.
