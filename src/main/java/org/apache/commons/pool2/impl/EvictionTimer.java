@@ -22,11 +22,11 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- * 提供一个所有"对象池"共享的"空闲对象的驱逐定时器"。
+ * 提供一个所有"对象池"共享的"空闲对象的驱逐定时器"。<br>
  * 
- * 此类包装标准的定时器({@link Timer})，并追踪有多少个对象池使用它。
+ * 此类包装了标准的定时器({@link Timer})，并追踪有多少个"对象池"使用它。<br>
  * 
- * 如果没有对象池使用这个定时器，它会被取消。这样可以防止线程一直运行着
+ * 如果没有"对象池"使用"这个定时器"，它会被取消。这样可以防止线程一直运行着
  * (这会导致内存泄漏)，防止应用程序关闭或重新加载。
  * <p>
  * 此类是包范围的，以防止其被纳入到池框架的公共API中。
@@ -62,15 +62,15 @@ class EvictionTimer {
     }
 
     /**
-     * 添加指定的驱逐任务到这个定时器。
-     * 任务，通过调用该方法添加的，必须调用{@link #cancel(TimerTask)}来取消这个任务，
-     * 以防止内存或消除泄漏。
+     * 添加指定的"驱逐检测任务"到这个"定时器"。
+     * 任务，是通过调用该方法添加的，必须调用{@link #cancel(TimerTask)}来取消这个任务，
+     * 以防止内存或线程泄漏。
      * <p>
      * Add the specified eviction task to the timer. Tasks that are added with a
      * call to this method *must* call {@link #cancel(TimerTask)} to cancel the
      * task to prevent memory and/or thread leaks in application server
      * environments.
-     * @param task      Task to be scheduled (定时调度的任务)
+     * @param task      Task to be scheduled (待调度的任务)
      * @param delay     Delay in milliseconds before task is executed (任务执行前的等待时间)
      * @param period    Time in milliseconds between executions (执行间隔时间)
      */
@@ -94,11 +94,11 @@ class EvictionTimer {
     }
 
     /**
-     * 从定时器中删除指定的驱逐者任务。
+     * 从"定时器"中删除指定的"驱逐检测任务"。
      * <p>
      * Remove the specified eviction task from the timer.
      * 
-     * @param task      Task to be scheduled (定时调度任务)
+     * @param task      Task to be scheduled (待取消的任务)
      */
     static synchronized void cancel(TimerTask task) {
         task.cancel(); // 1. 将任务的状态标记为"取消(CANCELLED)"状态
