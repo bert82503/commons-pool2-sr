@@ -17,9 +17,9 @@
 package org.apache.commons.pool2.impl;
 
 /**
- * 此类用于将对象池的配置信息传递给"驱逐回收策略({@link EvictionPolicy})"实例。
+ * “驱逐检测机制”配置信息，用于将"对象池"实现类的配置信息传递给"驱逐策略({@link EvictionPolicy})"实例。
  * <p>
- * <font color="red">此类是不可变的，且是线程安全的。</font>
+ * <font color="red">此类是不可变和线程安全的。</font>
  * <p>
  * 
  * This class is used by pool implementations to pass configuration information
